@@ -1,0 +1,7 @@
+.env
+data/state.json
+data/subscriptions.json
+__pycache__/
+*.py[cod]
+.venv/
+venv/

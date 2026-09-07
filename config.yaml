@@ -1,0 +1,77 @@
+# ---------------------------------------------------------------------------
+# AngleBot - configuration
+# Les valeurs ${VAR} sont remplacees par les variables du .env / environnement.
+# ---------------------------------------------------------------------------
+
+# Delai entre deux verifications de toutes les sources (secondes)
+poll_interval_seconds: 300
+
+# Au tout premier passage sur une source : false = on memorise sans notifier
+# (evite de deverser 20 anciens posts dans le salon au demarrage).
+announce_on_first_run: false
+
+# Nombre max de nouveautes annoncees par source et par verification.
+max_items_per_check: 5
+
+# Nombre d'identifiants memorises par source pour la deduplication.
+seen_history_size: 250
+
+# ---------------------------------------------------------------------------
+# Role donne automatiquement a chaque nouveau membre.
+# Pre-requis : intent "Server Members" actif dans le portail developpeur,
+# permission "Gerer les roles" pour le bot, et role du bot place AU-DESSUS
+# du role attribue dans la hierarchie du serveur. `/autorole etat` verifie tout.
+# ---------------------------------------------------------------------------
+autorole:
+  enabled: true
+  role_id: 1546623728895656016
+  include_bots: false        # true = les bots qui rejoignent recoivent aussi le role
+  wait_for_screening: true   # attendre la validation du reglement avant d'attribuer
+
+http:
+  timeout_seconds: 20
+  user_agent: "AngleBot/1.0 (+https://github.com/)"
+
+bridges:
+  # Passerelles utilisees par les sources sociales sans API publique.
+  rsshub: "${RSSHUB_BASE}"
+  rsshub_key: "${RSSHUB_KEY}"
+
+# ---------------------------------------------------------------------------
+# Sources surveillees.
+#   type    : rss | bluesky | tiktok | instagram | x | threads | youtube
+#   channel_id : salon Discord cible (sinon DISCORD_DEFAULT_CHANNEL_ID)
+#   role_id    : role a mentionner (optionnel)
+# Ces sources sont statiques ; celles ajoutees via /watch vivent dans
+# data/subscriptions.json et se cumulent avec celles-ci.
+# ---------------------------------------------------------------------------
+sources:
+  - name: "Angle Gauche - Articles"
+    type: rss
+    url: "https://anglegauche.fr/rss.php"
+    channel_id: 1546625871517843507
+    role_id: 1546623728895656016
+
+  - name: "Angle Gauche - Bluesky"
+    type: bluesky
+    handle: "anglegauche.bsky.social"
+
+  - name: "Angle Gauche - TikTok"
+    type: tiktok
+    handle: "anglegauche"
+
+  - name: "Angle Gauche - Instagram"
+    type: instagram
+    handle: "angle.gauche"
+
+  - name: "Angle Gauche - X"
+    type: x
+    handle: "angle_gauche"
+
+  # - name: "Angle Gauche - Threads"
+  #   type: threads
+  #   handle: "anglegauche"
+
+  - name: "YouTube - chaine"
+    type: youtube
+    channel: "angle.gauche"
