@@ -1,0 +1,14 @@
+.git
+.github
+.venv
+venv
+__pycache__
+**/__pycache__
+*.py[cod]
+data
+.env
+rsshub.env
+README.md
+Dockerfile
+.dockerignore
+docker-compose.yml

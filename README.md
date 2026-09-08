@@ -150,11 +150,92 @@ defaut l'instance publique [RSSHub](https://docs.rsshub.app). Consequences :
 - ces plateformes changent regulierement leurs protections : une route peut cesser de
   fonctionner du jour au lendemain.
 
-Pour une veille fiable sur ces reseaux, **auto-hebergez RSSHub** (image Docker officielle)
-et pointez `RSSHUB_BASE` dessus, ou fournissez `url:` avec le pont de votre choix.
-`/veille apercu` permet de verifier immediatement si une route repond.
+Pour une veille fiable sur ces reseaux, utilisez le `docker-compose.yml` fourni : il
+lance **votre propre instance RSSHub** et y branche le bot automatiquement
+(voir [section 7](#7-deploiement-docker-bot--rsshub)). Sinon, fournissez `url:` avec
+le pont de votre choix. `/veille apercu` verifie immediatement si une route repond.
 
-## 7. Fonctionnement interne
+## 7. Deploiement Docker (bot + RSSHub)
+
+`docker-compose.yml` demarre trois services : le bot, une instance **RSSHub privee**
+et le Redis qui lui sert de cache. Le bot vise `http://rsshub:1200` par le reseau
+interne — la valeur `RSSHUB_BASE` du `.env` est ecrasee, vous n'avez rien a y changer.
+C'est ce qui debloque TikTok, Instagram, X et Threads, que l'instance publique refuse.
+
+```bash
+cp .env.example .env          # token, salon, role : a renseigner
+cp rsshub.env.example rsshub.env   # optionnel : identifiants Instagram / X
+docker compose up -d
+docker compose logs -f anglebot
+```
+
+- `config.yaml` est monte en lecture seule : modifiez-le puis
+  `docker compose restart anglebot`, sans reconstruire l'image.
+- L'etat de deduplication vit dans le volume `anglebot-data`. Le conserver evite de
+  re-annoncer d'anciennes publications ; l'inspecter :
+  `docker compose exec anglebot cat /app/data/state.json`.
+- RSSHub n'ecoute que sur `127.0.0.1:1200`, pour tester une route a la main :
+  `curl "http://127.0.0.1:1200/tiktok/user/@anglegauche"`.
+- L'image `chromium-bundled` embarque le navigateur exige par TikTok et Threads :
+  comptez ~1,5 Go de RAM pour l'ensemble.
+- Instagram et X demandent en plus des identifiants dans `rsshub.env`
+  (`IG_USERNAME`/`IG_PASSWORD` ou `IG_COOKIE`, et `TWITTER_AUTH_TOKEN`) — noms
+  verifies dans les sources de RSSHub, voir <https://docs.rsshub.app/deploy/config>.
+
+Verification hors ligne avant de deployer, sans contacter Discord :
+
+```bash
+python scripts/smoke_test.py
+```
+
+## 8. Mise a jour automatique (GitHub Actions)
+
+`.github/workflows/deploy.yml` enchaine trois etapes a chaque push sur `main` :
+verification hors ligne, construction de l'image sur `ghcr.io`, puis deploiement SSH
+qui envoie `docker-compose.yml` et relance les conteneurs sur le tag du commit.
+
+A configurer une fois dans *Settings → Secrets and variables → Actions* :
+
+| Nom | Type | Role |
+| --- | --- | --- |
+| `SSH_HOST` | secret | adresse du serveur |
+| `SSH_USER` | secret | utilisateur SSH, membre du groupe `docker` |
+| `SSH_KEY` | secret | cle privee de deploiement (`ssh-keygen -t ed25519`) |
+| `SSH_KNOWN_HOSTS` | secret | sortie de `ssh-keyscan votre-serveur` — sans lui, la cle du serveur est acceptee sans verification |
+| `SSH_PORT` | variable | port SSH, defaut `22` |
+| `DEPLOY_DIR` | variable | dossier sur le serveur, defaut `/opt/anglebot` |
+| `DEPLOY_ENABLED` | variable | **`true` pour activer le deploiement**. Absente, le workflow se contente de verifier et de construire l'image |
+
+Cote serveur, une seule preparation manuelle :
+
+```bash
+sudo mkdir -p /opt/anglebot && cd /opt/anglebot
+# .env et config.yaml sont la propriete du serveur : le workflow n'y touche jamais
+sudo nano .env          # token, salon, role
+sudo nano config.yaml   # sources surveillees
+```
+
+Le deploiement echoue volontairement si `.env` est absent du dossier, plutot que de
+demarrer un bot sans token.
+
+L'image publiee sur GHCR est **privee par defaut**. Rendez le package public
+(*Package settings → Change visibility*), ou authentifiez le serveur une fois :
+
+```bash
+echo "$GHCR_TOKEN" | docker login ghcr.io -u ItsKandar --password-stdin
+```
+
+Revenir en arriere apres un deploiement casse :
+
+```bash
+cd /opt/anglebot
+ANGLEBOT_TAG=<sha-du-commit-precedent> docker compose up -d
+```
+
+Un `docker compose up -d` sans `ANGLEBOT_TAG` reprend le tag `latest`, c'est-a-dire
+le dernier build de `main`.
+
+## 9. Fonctionnement interne
 
 ```
 main.py               point d'entree : .env, logs, demarrage
@@ -166,6 +247,9 @@ anglebot/notifier.py  construction des embeds et envoi
 anglebot/state.py     data/state.json : identifiants deja annonces (250 par source)
 anglebot/subscriptions.py  data/subscriptions.json : sources ajoutees via Discord
 anglebot/sources/     rss.py, bluesky.py, social.py + registre des types
+scripts/smoke_test.py verification hors ligne (config, cogs, commandes)
+Dockerfile            image du bot (python:3.14-slim, utilisateur non-root)
+docker-compose.yml    bot + RSSHub privee + Redis
 ```
 
 Les publications sont reclassees par date avant traitement : certains flux (dont des
@@ -180,7 +264,7 @@ ancien est marque comme vu sans notification.
 Supprimer `data/state.json` remet la deduplication a zero : au prochain demarrage, tout
 est re-memorise silencieusement (ou re-annonce si `announce_on_first_run: true`).
 
-## 8. Depannage
+## 10. Depannage
 
 | Symptome | Piste |
 | --- | --- |
@@ -188,7 +272,11 @@ est re-memorise silencieusement (ou re-annonce si `announce_on_first_run: true`)
 | Les commandes `/` n'apparaissent pas | scope `applications.commands` manquant a l'invitation, ou attendez la propagation / renseignez `DISCORD_GUILD_ID` |
 | `Salon ... introuvable` | mauvais ID, ou le bot ne voit pas le salon |
 | `Droits insuffisants` | accordez *Envoyer des messages* et *Integrer des liens* au bot dans ce salon |
-| `HTTP 429/503` sur TikTok/Instagram/X | passerelle publique saturee : auto-hebergez RSSHub |
+| `HTTP 403/404` sur TikTok/Instagram/X | l'instance publique refuse ces routes : passez par le `docker compose` fourni |
+| RSSHub repond mais Instagram/X echouent | identifiants manquants dans `rsshub.env` |
+| Le deploiement s'arrete sur `.env absent` | creez `/opt/anglebot/.env` sur le serveur |
+| `denied` au `docker compose pull` | package GHCR prive : rendez-le public ou `docker login ghcr.io` |
+| `403` au push de l'image en CI | *Settings → Actions → General → Workflow permissions* : passez a **Read and write** |
 | Notifications en double | `data/state.json` non persiste (verifiez le volume si vous conteneurisez) |
 | Le bot refuse de demarrer (`Server Members`) | activez l'intent dans le portail, ou `autorole.enabled: false` |
 | Le role automatique n'est pas donne | lancez `/autorole etat` : hierarchie, permission ou intent |
