@@ -163,11 +163,15 @@ interne — la valeur `RSSHUB_BASE` du `.env` est ecrasee, vous n'avez rien a y 
 C'est ce qui debloque TikTok, Instagram, X et Threads, que l'instance publique refuse.
 
 ```bash
-cp .env.example .env          # token, salon, role : a renseigner
-cp rsshub.env.example rsshub.env   # optionnel : identifiants Instagram / X
+cp .env.example .env                 # token, salon, role : a renseigner
+cp rsshub.env.example rsshub.env     # obligatoire, meme laisse vide
+docker compose pull                  # recupere l'image publiee sur GHCR
 docker compose up -d
 docker compose logs -f anglebot
 ```
+
+Sans `docker compose pull`, l'image est reconstruite localement depuis le `Dockerfile` :
+plus long, mais utile en developpement.
 
 - `config.yaml` est monte en lecture seule : modifiez-le puis
   `docker compose restart anglebot`, sans reconstruire l'image.
@@ -178,6 +182,10 @@ docker compose logs -f anglebot
   `curl "http://127.0.0.1:1200/tiktok/user/@anglegauche"`.
 - L'image `chromium-bundled` embarque le navigateur exige par TikTok et Threads :
   comptez ~1,5 Go de RAM pour l'ensemble.
+- Le fichier reste compatible avec l'ancien `docker-compose` v1 (Python), encore
+  utilise par l'emulation `podman` : d'ou la cle `version`, absente des exemples
+  Compose recents, et `env_file` sous forme de chaine — ce qui impose de creer
+  `rsshub.env` avant le premier demarrage, meme vide.
 - Instagram et X demandent en plus des identifiants dans `rsshub.env`
   (`IG_USERNAME`/`IG_PASSWORD` ou `IG_COOKIE`, et `TWITTER_AUTH_TOKEN`) — noms
   verifies dans les sources de RSSHub, voir <https://docs.rsshub.app/deploy/config>.

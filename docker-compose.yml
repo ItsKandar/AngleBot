@@ -1,4 +1,7 @@
-name: anglebot
+# version + env_file en chaine simple : indispensable pour l'ancien
+# docker-compose v1 (Python), encore utilise par l'emulation podman.
+# Compose v2 ignore la cle version avec un simple avertissement.
+version: "3.8"
 
 x-logging: &logging
   driver: json-file
@@ -39,10 +42,9 @@ services:
       REDIS_URL: redis://redis:6379/
       # Doit valoir la meme chose que RSSHUB_KEY dans .env, ou rester vide.
       ACCESS_KEY: ${RSSHUB_KEY:-}
-    env_file:
-      # Cookies Instagram / X. Absent = RSSHub garde ses valeurs par defaut.
-      - path: ./rsshub.env
-        required: false
+    # Cookies Instagram / X. Le fichier doit exister :
+    # `cp rsshub.env.example rsshub.env` avant le premier demarrage.
+    env_file: ./rsshub.env
     ports:
       # Ecoute uniquement en local, pour tester une route a la main :
       # curl "http://127.0.0.1:1200/tiktok/user/@anglegauche"
