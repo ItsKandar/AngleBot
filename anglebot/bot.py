@@ -84,6 +84,13 @@ class AngleBot(commands.Bot):
 
         await self.add_cog(WatchCog(self))
         await self.add_cog(AutoRoleCog(self))
+        if self.config.agenda.active:
+            from .agenda import AgendaCog
+
+            await self.add_cog(AgendaCog(self))
+            log.info("Agenda actif : /agenda publie sur %s.", self.config.agenda.directus_url)
+        else:
+            log.info("Agenda inactif : DIRECTUS_AGENDA_TOKEN absent du .env.")
         if self.config.autorole.active:
             log.info(
                 "Autorole actif : role %s attribue aux nouveaux membres.",

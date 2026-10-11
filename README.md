@@ -103,6 +103,29 @@ Une source ajoutee via `/veille ajouter` est enregistree dans `data/subscription
 et prise en compte immediatement, sans redemarrage. Ses publications deja en ligne sont
 memorisees comme point de reference : seules les suivantes declenchent une notification.
 
+## 4 bis. Agenda du site
+
+`/agenda` publie directement un evenement sur l'agenda d'[anglegauche.fr](https://anglegauche.fr),
+en l'ecrivant dans la collection `events` de Directus. Le site vide son cache a chaque
+creation : l'evenement est en ligne aussitot.
+
+| Commande | Effet |
+| --- | --- |
+| `/agenda ajouter [lien] [affiche]` | ouvre un formulaire (titre, date et heure, lieu, organisateur, description) puis publie |
+| `/agenda prochains` | liste les prochains evenements publies, avec leur lien |
+
+- Reservees aux **administrateurs** du serveur (la redaction), verifie aussi cote bot.
+- Date en heure de Paris : `14/10/2026 18:00`, `14/10 18h30`… Sans annee, la prochaine
+  occurrence. Une date passee ou illisible est refusee, et la saisie est renvoyee pour
+  etre recopiee.
+- L'affiche (image, 10 Mo max) est envoyee dans Directus et sert d'image a l'evenement.
+- Une correction ou une suppression se fait ensuite dans Directus.
+
+Configuration dans `.env` : `DIRECTUS_AGENDA_TOKEN`, le jeton du compte Directus
+« Bot Agenda » cree par le bootstrap du site (meme valeur que `DIRECTUS_AGENDA_TOKEN`
+dans son `docker-compose.yml`). Ce compte ne peut que creer et lire des evenements et
+envoyer des images. Sans jeton, `/agenda` n'est simplement pas charge.
+
 ## 5. Role automatique des nouveaux membres
 
 ```yaml

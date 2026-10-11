@@ -3,3 +3,6 @@ aiohttp>=3.10
 feedparser>=6.0.11
 python-dotenv>=1.0.1
 PyYAML>=6.0.2
+# Fuseau Europe/Paris pour zoneinfo : l'image python:slim n'embarque pas
+# la base des fuseaux du systeme.
+tzdata>=2024.1
