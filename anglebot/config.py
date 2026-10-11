@@ -74,6 +74,19 @@ class AutoRoleConfig:
 
 
 @dataclass(slots=True)
+class AgendaConfig:
+    """Publication sur l'agenda du site (Directus) via /agenda."""
+
+    token: str = ""
+    directus_url: str = "https://redac.anglegauche.fr"
+    site_url: str = "https://anglegauche.fr"
+
+    @property
+    def active(self) -> bool:
+        return bool(self.token)
+
+
+@dataclass(slots=True)
 class Config:
     token: str
     default_channel_id: int | None
@@ -86,6 +99,7 @@ class Config:
     bridges: dict[str, str] = field(default_factory=dict)
     sources: list[dict[str, Any]] = field(default_factory=list)
     autorole: AutoRoleConfig = field(default_factory=AutoRoleConfig)
+    agenda: AgendaConfig = field(default_factory=AgendaConfig)
 
     @classmethod
     def load(cls) -> "Config":
@@ -151,6 +165,12 @@ class Config:
             bridges=bridges,
             sources=[s for s in sources if isinstance(s, dict)],
             autorole=autorole,
+            agenda=AgendaConfig(
+                token=os.getenv("DIRECTUS_AGENDA_TOKEN", "").strip(),
+                directus_url=os.getenv("DIRECTUS_URL", "").strip()
+                or "https://redac.anglegauche.fr",
+                site_url=os.getenv("SITE_URL", "").strip() or "https://anglegauche.fr",
+            ),
         )
         DATA_DIR.mkdir(parents=True, exist_ok=True)
         return cfg
