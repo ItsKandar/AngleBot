@@ -111,7 +111,7 @@ creation : l'evenement est en ligne aussitot.
 
 | Commande | Effet |
 | --- | --- |
-| `/agenda ajouter [lien] [affiche]` | ouvre un formulaire (titre, date et heure, lieu, organisateur, description) puis publie |
+| `/agenda ajouter [type] [lien] [affiche]` | ouvre un formulaire (titre, date et heure, lieu, organisateur, description) puis publie |
 | `/agenda prochains` | liste les prochains evenements publies, avec leur lien |
 
 - Reservees aux **administrateurs** du serveur (la redaction), verifie aussi cote bot.
@@ -119,6 +119,8 @@ creation : l'evenement est en ligne aussitot.
   occurrence. Une date passee ou illisible est refusee, et la saisie est renvoyee pour
   etre recopiee.
 - L'affiche (image, 10 Mo max) est envoyee dans Directus et sert d'image a l'evenement.
+- `type` : Evenement (par defaut), Formation, Table ronde ou Debat. Les trois derniers
+  apparaissent aussi en « Prochaines sessions » sur la page Formations du site.
 - Une correction ou une suppression se fait ensuite dans Directus.
 
 Configuration dans `.env` : `DIRECTUS_AGENDA_TOKEN`, le jeton du compte Directus
