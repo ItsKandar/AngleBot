@@ -211,9 +211,11 @@ plus long, mais utile en developpement.
   utilise par l'emulation `podman` : d'ou la cle `version`, absente des exemples
   Compose recents, et `env_file` sous forme de chaine — ce qui impose de creer
   `rsshub.env` avant le premier demarrage, meme vide.
-- Instagram et X demandent en plus des identifiants dans `rsshub.env`
-  (`IG_USERNAME`/`IG_PASSWORD` ou `IG_COOKIE`, et `TWITTER_AUTH_TOKEN`) — noms
-  verifies dans les sources de RSSHub, voir <https://docs.rsshub.app/deploy/config>.
+- Instagram et X demandent en plus des identifiants dans `rsshub.env` :
+  `INSTAGRAM_COOKIE` (cookie d'un compte connecte, seuls `sessionid` et
+  `ds_user_id` sont utiles ; l'identifiant + mot de passe n'est plus gere) et
+  `TWITTER_AUTH_TOKEN` — noms verifies dans les sources de RSSHub, voir
+  <https://docs.rsshub.app/deploy/config>.
 
 Verification hors ligne avant de deployer, sans contacter Discord :
 
