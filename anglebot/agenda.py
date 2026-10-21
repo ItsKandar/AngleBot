@@ -35,6 +35,16 @@ _MONTHS = [
     "juillet", "aout", "septembre", "octobre", "novembre", "decembre",
 ]
 
+#: Valeurs du champ `type` des evenements dans Directus et leur libelle.
+#: Formations, tables rondes et debats sont aussi listes sur la page
+#: Formations du site ; "evenement" est la valeur par defaut cote Directus.
+EVENT_TYPES = {
+    "evenement": "Evenement",
+    "formation": "Formation",
+    "table_ronde": "Table ronde",
+    "debat": "Debat",
+}
+
 #: "14/10/2026 18:00", "14/10/2026 18h30", "14/10/26 18h", "14/10 18:00"...
 _DATE_RE = re.compile(
     r"^\s*(\d{1,2})[/.-](\d{1,2})(?:[/.-](\d{2}|\d{4}))?"
@@ -55,6 +65,7 @@ class DraftEvent:
     organizer: str
     description: str
     link: str | None
+    type: str = "evenement"
 
 
 def parse_start(raw: str, now: datetime | None = None) -> datetime:
@@ -147,6 +158,10 @@ class DirectusAgenda:
             "description": draft.description or None,
             "link": draft.link,
         }
+        # Pas envoye pour un simple evenement : c'est la valeur par defaut du
+        # champ, et ca garde le bot compatible avec un Directus sans ce champ.
+        if draft.type != "evenement":
+            body["type"] = draft.type
         if image_id:
             body["image"] = image_id
         async with self.session.post(
@@ -165,7 +180,7 @@ class DirectusAgenda:
             "filter[status][_eq]": "published",
             "filter[starts_at][_gte]": "$NOW",
             "sort": "starts_at",
-            "fields": "id,title,starts_at,location_label,organizer",
+            "fields": "id,title,starts_at,location_label,organizer,type",
             "limit": str(limit),
         }
         async with self.session.get(
@@ -195,10 +210,11 @@ class EventModal(discord.ui.Modal, title="Ajouter a l'agenda du site"):
         max_length=4000,
     )
 
-    def __init__(self, cog: "AgendaCog", link: str | None,
+    def __init__(self, cog: "AgendaCog", event_type: str, link: str | None,
                  poster: discord.Attachment | None) -> None:
         super().__init__()
         self.cog = cog
+        self.event_type = event_type
         self.link = link
         self.poster = poster
 
@@ -236,13 +252,19 @@ class AgendaCog(commands.GroupCog, name="agenda", description="Agenda du site An
         return False
 
     @app_commands.command(name="ajouter", description="Publier un evenement sur l'agenda du site")
+    @app_commands.rename(type_="type")
     @app_commands.describe(
+        type_="Formation, table ronde ou debat : aussi affiche sur la page Formations du site",
         lien="Lien vers plus d'infos (facultatif)",
         affiche="Affiche de l'evenement, en image (facultatif)",
     )
+    @app_commands.choices(type_=[
+        app_commands.Choice(name=label, value=value) for value, label in EVENT_TYPES.items()
+    ])
     async def ajouter(
         self,
         interaction: discord.Interaction,
+        type_: app_commands.Choice[str] | None = None,
         lien: str | None = None,
         affiche: discord.Attachment | None = None,
     ) -> None:
@@ -264,7 +286,8 @@ class AgendaCog(commands.GroupCog, name="agenda", description="Agenda du site An
                     "L'affiche depasse 10 Mo.", ephemeral=True
                 )
                 return
-        await interaction.response.send_modal(EventModal(self, lien, affiche))
+        event_type = type_.value if type_ is not None else "evenement"
+        await interaction.response.send_modal(EventModal(self, event_type, lien, affiche))
 
     async def publish(self, interaction: discord.Interaction, modal: EventModal) -> None:
         typed = (
@@ -297,6 +320,7 @@ class AgendaCog(commands.GroupCog, name="agenda", description="Agenda du site An
             organizer=modal.organisateur.value.strip(),
             description=modal.description.value.strip(),
             link=modal.link,
+            type=modal.event_type,
         )
         await interaction.response.defer(ephemeral=True, thinking=True)
 
@@ -327,7 +351,8 @@ class AgendaCog(commands.GroupCog, name="agenda", description="Agenda du site An
             title=draft.title, url=url, description=draft.description[:500] or None,
             colour=discord.Colour.green(),
         )
-        embed.add_field(name="Quand", value=french_datetime(draft.starts_at), inline=False)
+        embed.add_field(name="Type", value=EVENT_TYPES[draft.type], inline=True)
+        embed.add_field(name="Quand", value=french_datetime(draft.starts_at), inline=True)
         if draft.location:
             embed.add_field(name="Lieu", value=draft.location, inline=True)
         if draft.organizer:
@@ -356,8 +381,14 @@ class AgendaCog(commands.GroupCog, name="agenda", description="Agenda du site An
                     str(event.get("starts_at", "")).replace("Z", "+00:00")))
             except ValueError:
                 when = "date inconnue"
+            # Le type n'est precise que s'il sort de l'ordinaire.
+            event_type = EVENT_TYPES.get(event.get("type")) if event.get("type") != "evenement" else None
             extra = " · ".join(
-                part for part in (event.get("location_label"), event.get("organizer")) if part
+                part for part in (
+                    event_type,
+                    event.get("location_label"),
+                    event.get("organizer"),
+                ) if part
             )
             lines.append(
                 f"**[{event.get('title', '?')}]({site}/evenement.php?id={event.get('id')})** — "
