@@ -52,13 +52,10 @@ services:
     depends_on:
       - redis
     healthcheck:
-      # Script SANS espaces : podman (via docker-compose v1) decoupe les arguments
-      # de la forme CMD sur les espaces, ce qui cassait le test (conteneur "unhealthy").
-      test:
-        - CMD
-        - node
-        - -e
-        - "fetch('http://localhost:1200/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      # Forme CMD-SHELL : podman-compose 1.0.6 transforme la forme liste CMD en
+      # `/bin/sh -c node' '-e' ...` (le shell cherche un programme "node -e") et le
+      # conteneur reste "unhealthy", meme avec un script sans espaces.
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:1200/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
       interval: 60s
       timeout: 10s
       start_period: 90s
